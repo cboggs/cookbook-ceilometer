@@ -1,6 +1,7 @@
 Description
 ===========
 
+Cookbook to be used with rcbpops chef-repo (https://github.com/rcbops/chef-cookbooks) only, as it relies on attributes from pre-existing recipes, envs and roles.
 Installs the Openstack ceilometer service from pip packages.
 
 Requirements
@@ -58,8 +59,7 @@ ceilometer-agent-central
 
 Attributes
 ==========
-
-* `ceilometer["database_connection"] - Database backend for ceilometer
+Attributes are auto-populated from other recipes when used with rcbpops chef-repo.
 
 Templates
 =====
