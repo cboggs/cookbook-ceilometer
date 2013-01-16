@@ -17,13 +17,15 @@
 # limitations under the License.
 #
 
+require 'uri'
+
 include_recipe "nova::nova-common"
 include_recipe "python::pip"
 
 branch = node["ceilometer"]["branch"] || 'folsom'
 
-dependent_packages = node["ceilometer"]["dependent_packages"]
-dependent_packages.each do |pkg|
+dependent_pkgs = node["ceilometer"]["dependent_pkgs"]
+dependent_pkgs.each do |pkg|
   package pkg do
     action :upgrade
   end
@@ -88,17 +90,33 @@ end
 
 nova_setup_info = get_settings_by_role("nova-setup", "nova")
 
-# nova mysql
-mysql_info = get_access_endpoint("mysql-master", "mysql", "db")
-mysql_host = mysql_info["host"]
-mysql_port = mysql_info["port"]
-mysql_user = node["nova"]["db"]["username"]
-mysql_password = nova_setup_info["db"]["password"]
-mysql_dbname = node["nova"]["db"]["name"] || 'nova'
-mysql_uri = "mysql://#{mysql_user}:#{mysql_password}@#{mysql_host}:#{mysql_port}/#{mysql_dbname}"
+# nova db
+nova_db_info = get_access_endpoint("mysql-master", "mysql", "db")
+nova_db_host = nova_db_info["host"]
+nova_db_port = nova_db_info["port"]
+nova_db_user = node["nova"]["db"]["username"]
+nova_db_password = nova_setup_info["db"]["password"]
+nova_db_name = node["nova"]["db"]["name"] || 'nova'
+nova_db_uri = URI::Generic.build({:host => nova_db_host,
+                             :port => nova_db_port,
+                             :scheme => 'mysql',
+                             :userinfo => "#{nova_db_user}:#{nova_db_password}",
+                             :path => "/#{nova_db_name}",
+                             :query => "charset=utf8"
+                            })
 
 # ceilometer db
-database_connection = node["ceilometer"]["database_connection"]
+db_name = node["ceilometer"]["db"]["name"]
+db_user = node["ceilometer"]["db"]["username"]
+db_password = node["ceilometer"]["db"]["password"]
+db_scheme = node["ceilometer"]["db"]["scheme"]
+db_uri = URI::Generic.build({:host => nova_db_host,
+                             :port => nova_db_port,
+                             :scheme => db_scheme,
+                             :userinfo => "#{db_user}:#{db_password}",
+                             :path => "/#{db_name}",
+                             :query => "charset=utf8"
+                            })
 
 rabbit_info = get_access_endpoint("rabbitmq-server", "rabbitmq", "queue")
 keystone = get_settings_by_role("keystone", "keystone")
@@ -114,8 +132,8 @@ template "/etc/ceilometer/ceilometer.conf" do
   group  nova_group
   mode   00644
   variables(
-    :database_connection => database_connection,
-    :sql_connection => mysql_uri,
+    :database_connection => db_uri.to_s,
+    :sql_connection => nova_db_uri,
     :rabbit_ipaddress => rabbit_info["host"],
     :rabbit_port => rabbit_info["port"],
     :user => keystone["admin_user"],
