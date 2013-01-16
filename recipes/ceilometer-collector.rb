@@ -19,32 +19,40 @@
 
 include_recipe "ceilometer::ceilometer-common"
 
-case node['platform']
-when 'ubuntu'
-  cookbook_file "/etc/init/ceilometer-collector.conf" do
-    source "init_ceilometer-collector.conf"
-    mode 0644
-    owner node["nova"]["user"]
-    group node["nova"]["group"]
-  end
-  
-  link "/etc/init.d/ceilometer-collector" do
-    to '/lib/init/upstart-job'
-    action :create
-  end
+release = node["package_component"] || 'folsom'
+
+database_connection = node["ceilometer"]["database_connection"]
+if database_connection &&  database_connection.match(/^mongodb:\/\//)
+  mongodb_flag = True
 else
-  # need to implement
+  mongodb_flag = nil
+end
+
+include_recipe "mongodb" if mongodb_flag
+
+# db migration
+ceilometer_conf = node["ceilometer"]["conf"]
+install_dir = node["ceilometer"]["install_dir"]
+bash "migration" do
+  case release
+  when 'folsom'
+    break if mongodb_flag
+    code <<-EOF
+      #{install_dir}/tools/dbsync --config-file=#{ceilometer_conf}
+    EOF
+  else
+    code <<-EOF
+      ceilometer-dbsync --config-file=#{ceilometer_conf}
+    EOF
+  end
 end
 
 bindir = '/usr/local/bin'
-conf_switch = '--config-file /etc/ceilometer/ceilometer.conf'
+conf_switch = "--config-file #{ceilometer_conf}"
 
 service "ceilometer-collector" do
-  case  node['platform']
-  when 'ubuntu'
-    service_name "ceilometer-collector"
-    action [:enable, :start]
-  else
-    start_command "nohup #{bindir}/ceilometer-collector #{conf_switch} &"
-  end
+  service_name "ceilometer-collector"
+  action [:start]
+  start_command "nohup #{bindir}/ceilometer-collector #{conf_switch} &"
+  stop_command "pkill -f ceilometer-collector"
 end

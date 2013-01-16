@@ -17,11 +17,19 @@
 # limitations under the License.
 #
 
-include_recipe "mongodb"
 include_recipe "nova::nova-common"
 include_recipe "python::pip"
 
-api_logdir = '/var/log/ceilometer-api'
+branch = node["ceilometer"]["branch"] || 'folsom'
+
+dependent_packages = node["ceilometer"]["dependent_packages"]
+dep_packages.each do |pkg|
+  package pkg do
+    action :upgrade
+  end
+end
+
+api_logdir = node["ceilometer"]["api_logdir"]
 nova_owner = node["nova"]["user"]
 nova_group = node["nova"]["group"]
 
@@ -29,14 +37,47 @@ directory api_logdir do
   owner nova_owner
   group nova_group
   mode  00755
+  recursive true
 
   action :create
 end
 
+#  Cleanup old installation
 python_pip "ceilometer" do
+  action :remove
+end
+
+bin_names = ['agent-compute', 'agent-central', 'collector', 'dbsync', 'api']
+bin_names.each do |bin_name|
+  file "ceilometer-#{bin_name}" do
+    action :delete
+  end
+end
+
+# install source
+install_dir = node["ceilometer"]["install_dir"]
+
+directory install_dir do
+  owner nova_owner
+  group nova_group
+  mode  00755
+  recursive true
+
+  action :create
+end
+
+git install_dir do
+  repo "git://github.com/openstack/ceilometer.git"
+  reference branch 
+  action :sync
+end
+
+python_pip install_dir do
   action :install
 end
 
+# create conf
+conf = node["ceilometer"]["conf"]
 directory "/etc/ceilometer" do
   owner nova_owner
   group nova_group
@@ -47,6 +88,7 @@ end
 
 nova_setup_info = get_settings_by_role("nova-setup", "nova")
 
+# nova mysql
 mysql_info = get_access_endpoint("mysql-master", "mysql", "db")
 mysql_host = mysql_info["host"]
 mysql_port = mysql_info["port"]
@@ -54,6 +96,9 @@ mysql_user = node["nova"]["db"]["username"]
 mysql_password = nova_setup_info["db"]["password"]
 mysql_dbname = node["nova"]["db"]["name"] || 'nova'
 mysql_uri = "mysql://#{mysql_user}:#{mysql_password}@#{mysql_host}:#{mysql_port}/#{mysql_dbname}"
+
+# ceilometer db
+database_connection = node["ceilometer"]["database_connection"]
 
 rabbit_info = get_access_endpoint("rabbitmq-server", "rabbitmq", "queue")
 keystone = get_settings_by_role("keystone", "keystone")
@@ -69,6 +114,7 @@ template "/etc/ceilometer/ceilometer.conf" do
   group  nova_group
   mode   00644
   variables(
+    :database_connection => database_connection,
     :sql_connection => mysql_uri,
     :rabbit_ipaddress => rabbit_info["host"],
     :rabbit_port => rabbit_info["port"],

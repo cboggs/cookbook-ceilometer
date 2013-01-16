@@ -19,33 +19,14 @@
 
 include_recipe "ceilometer::ceilometer-common"
 
-case node['platform']
-when 'ubuntu'
-  cookbook_file "/etc/init/ceilometer-api.conf" do
-    source "init_ceilometer-api.conf"
-    mode 0644
-    owner node["nova"]["user"]
-    group node["nova"]["group"]
-  end
-  
-  link "/etc/init.d/ceilometer-api" do
-    to '/lib/init/upstart-job'
-    action :create
-  end
-else
-  # need to implement
-end
-
 bindir = '/usr/local/bin'
-logdir = '/var/log/ceilometer-api'
-conf_switch = '--config-file /etc/ceilometer/ceilometer.conf'
+logdir = node["ceilometer"]["api_logdir"]
+ceilometer_conf = node["ceilometer"]["conf"]
+conf_switch = "--config-file #{ceilometer_conf}"
 
 service "ceilometer-api" do
-  case  node['platform']
-  when 'ubuntu'
-    service_name "ceilometer-api"
-    action [:enable, :start]
-  else
-    start_command "nohup #{bindir}/ceilometer-api -d --log-dir=#{logdir} #{conf_switch} &"
-  end
+  service_name "ceilometer-api"
+  action [:enable, :start]
+  start_command "nohup #{bindir}/ceilometer-api -d --log-dir=#{logdir} #{conf_switch} &"
+  stop_command "pkill -f ceilometer-api"
 end
