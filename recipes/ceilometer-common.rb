@@ -23,7 +23,7 @@ include_recipe "python::pip"
 branch = node["ceilometer"]["branch"] || 'folsom'
 
 dependent_packages = node["ceilometer"]["dependent_packages"]
-dep_packages.each do |pkg|
+dependent_packages.each do |pkg|
   package pkg do
     action :upgrade
   end
