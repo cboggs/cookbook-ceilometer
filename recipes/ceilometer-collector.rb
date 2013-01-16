@@ -17,7 +17,20 @@
 # limitations under the License.
 #
 
+::Chef::Recipe.send(:include, Opscode::OpenSSL::Password)
+
+include_recipe "ceilometer::ceilometer-db-setup"
 include_recipe "ceilometer::ceilometer-common"
+
+release = node["package_component"] || 'folsom'
+
+db_scheme = node["ceilometer"]["db"]["scheme"]
+if db_scheme == 'mongodb'
+  include_recipe "mongodb" 
+  package 'python-pymongo' do
+    action :upgrade
+  end
+end
 
 case node['platform']
 when 'ubuntu'
@@ -27,7 +40,7 @@ when 'ubuntu'
     owner node["nova"]["user"]
     group node["nova"]["group"]
   end
-  
+
   link "/etc/init.d/ceilometer-collector" do
     to '/lib/init/upstart-job'
     action :create
@@ -36,15 +49,34 @@ else
   # need to implement
 end
 
+# db migration
+ceilometer_conf = node["ceilometer"]["conf"]
+install_dir = node["ceilometer"]["install_dir"]
+bash "migration" do
+  case release
+  when 'folsom'
+    break if db_scheme == 'mongodb'
+    code <<-EOF
+      #{install_dir}/tools/dbsync --config-file=#{ceilometer_conf}
+    EOF
+  else
+    code <<-EOF
+      ceilometer-dbsync --config-file=#{ceilometer_conf}
+    EOF
+  end
+end
+
 bindir = '/usr/local/bin'
-conf_switch = '--config-file /etc/ceilometer/ceilometer.conf'
+conf_switch = "--config-file #{ceilometer_conf}"
 
 service "ceilometer-collector" do
+  service_name "ceilometer-collector"
   case  node['platform']
   when 'ubuntu'
-    service_name "ceilometer-collector"
     action [:enable, :start]
   else
+    action [:start]
     start_command "nohup #{bindir}/ceilometer-collector #{conf_switch} &"
+    stop_command "pkill -f ceilometer-collector"
   end
 end

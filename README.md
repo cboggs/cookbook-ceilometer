@@ -2,7 +2,7 @@ Description
 ===========
 
 Cookbook to be used with rcbpops chef-repo (https://github.com/rcbops/chef-cookbooks) only, as it relies on attributes from pre-existing recipes, envs and roles.
-Installs the Openstack ceilometer service from pip packages.
+Installs the Openstack ceilometer service from github source (https://github.com/openstack/ceilometer.git).
 
 Requirements
 ============
@@ -10,10 +10,9 @@ Requirements
 Chef 0.10.0 or higher required (for Chef environment use).
 
 Platforms
---------
+---------
 
 * Ubuntu-12.04
-* Fedora-17
 
 Cookbooks
 ---------
@@ -38,28 +37,54 @@ ceilometer-common
 ----
 - Installs the ceilometer code base, conf and dependencies
 
+ceilometer-db-setup
+---
+- Creates Ceilometer MySQL db, user, password via osops-utils and runs db migration
+
 ceilometer-api
 ---
-- Installs the ceilometer-api service startup script
+- Controls ceilometer-api start/stop
 
 ceilometer-collector
 ---
-- Installs the ceilometer-collector service startup script
-
+- Controls ceilometer-collector start/stop
 
 ceilometer-agent-compute
 ---
-- Installs the ceilometer-agent-compute service startup script
+- Controls ceilometer-agent-compute start/stop
 
 
 ceilometer-agent-central
 ---
-- Installs the ceilometer-agent-central service startup script
+- Controls ceilometer-agent-central start/stop
 
 
 Attributes
 ==========
-Attributes are auto-populated from other recipes when used with rcbpops chef-repo.
+Some attributes are auto-populated from other recipes when used with rcbpops chef-repo.
+Ceilometer configurable attributes can be overridden via environments profile:
+
+* `node["ceilometer"]["api_logdir"]` - Directory location of ceilometer-api logfiles
+(Default: "/var/log/ceilometer-api")
+* `default["ceilometer"]["branch"]` - Ceilometer branch to checkout for install
+(Default: 'stable/folsom')
+* `default["ceilometer"]["conf"]` - Absolute path designating ceilometer config file
+(Default: "/etc/ceilometer/ceilometer.conf")
+* `default["ceilometer"]["db"]["name"]` - Ceilometer database name
+(Default: 'ceilometer')
+* `default["ceilometer"]["db"]["scheme"]` - Ceilometer database scheme
+(Default: 'mysql')
+* `default["ceilometer"]["db"]["username"]` - Ceilometer database user name
+(Default: 'ceilometer')
+* `default["ceilometer"]["dependent_pkgs"]` - Native OS package dependencies
+(Default: ['libxslt-dev', 'libxml2-dev'])
+* `default["ceilometer"]["install_dir"]` - Where to install the ceilometer source code
+(Default'/opt/ceilometer')
+
+
+Roles
+=====
+
 
 Templates
 =====

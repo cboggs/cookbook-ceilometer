@@ -37,15 +37,18 @@ else
 end
 
 bindir = '/usr/local/bin'
-logdir = '/var/log/ceilometer-api'
-conf_switch = '--config-file /etc/ceilometer/ceilometer.conf'
+logdir = node["ceilometer"]["api_logdir"]
+ceilometer_conf = node["ceilometer"]["conf"]
+conf_switch = "--config-file #{ceilometer_conf}"
 
 service "ceilometer-api" do
+  service_name "ceilometer-api"
   case  node['platform']
   when 'ubuntu'
-    service_name "ceilometer-api"
     action [:enable, :start]
   else
+    action [:start]
     start_command "nohup #{bindir}/ceilometer-api -d --log-dir=#{logdir} #{conf_switch} &"
+    stop_command "pkill -f ceilometer-api"
   end
 end
