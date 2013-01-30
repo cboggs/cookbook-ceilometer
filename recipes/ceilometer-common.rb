@@ -23,6 +23,7 @@ include_recipe "nova::nova-common"
 include_recipe "python::pip"
 
 branch = node["ceilometer"]["branch"]
+git_repo = node["ceilometer"]["repo"]
 
 dependent_pkgs = node["ceilometer"]["dependent_pkgs"]
 dependent_pkgs.each do |pkg|
@@ -69,7 +70,7 @@ directory install_dir do
 end
 
 git install_dir do
-  repo "git://github.com/openstack/ceilometer.git"
+  repo git_repo
   reference branch 
   action :sync
 end
@@ -144,7 +145,8 @@ template "/etc/ceilometer/ceilometer.conf" do
     :user => keystone["admin_user"],
     :tenant => keystone["users"][keystone["admin_user"]]["default_tenant"],
     :password => keystone["users"][keystone["admin_user"]]["password"],
-    :ks_admin_endpoint => ks_admin_endpoint["uri"]
+    :ks_admin_endpoint => ks_admin_endpoint["uri"],
+    :periodic_interval => node['ceilometer']['periodic_interval']
   )
 end
 

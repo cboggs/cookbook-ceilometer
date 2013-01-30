@@ -53,8 +53,7 @@ end
 ceilometer_conf = node["ceilometer"]["conf"]
 install_dir = node["ceilometer"]["install_dir"]
 bash "migration" do
-  case branch
-  when 'stable/folsom'
+  if File.exists?("#{install_dir}/tools/dbsync")
     break if db_scheme == 'mongodb'
     code <<-EOF
       #{install_dir}/tools/dbsync --config-file=#{ceilometer_conf}

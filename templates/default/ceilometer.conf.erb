@@ -12,6 +12,7 @@ rabbit_host = <%= @rabbit_ipaddress %>
 verbose = True
 notification_topics = notifications,glance_notifications
 rpc_backend = ceilometer.openstack.common.rpc.impl_kombu
+periodic_interval = <% @periodic_interval %>
 
 [keystone_authtoken]
 admin_tenant_name = <%= @tenant %>

@@ -19,6 +19,10 @@
 
 include_recipe "ceilometer::ceilometer-common"
 
+python_pip 'pymongo' do
+  action :install
+end
+
 case node['platform']
 when 'ubuntu'
   cookbook_file "/etc/init/ceilometer-api.conf" do
