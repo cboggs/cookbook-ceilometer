@@ -22,60 +22,78 @@
 include_recipe "ceilometer::ceilometer-db-setup"
 include_recipe "ceilometer::ceilometer-common"
 
-release = node["package_component"] || 'folsom'
+#release = node["package_component"] || 'folsom'
 
 db_scheme = node["ceilometer"]["db"]["scheme"]
 if db_scheme == 'mongodb'
+  include_recipe "mongodb::10gen_repo" 
   include_recipe "mongodb" 
-  package 'python-pymongo' do
-    action :upgrade
+
+  service "mongod" do
+    action [ :enable, :start ]
   end
+
+  case node['platform']
+  when 'ubuntu'
+    package 'python-pymongo'
+  when 'centos'
+    package 'pymongo'
+  end
+
 end
 
-case node['platform']
-when 'ubuntu'
-  cookbook_file "/etc/init/ceilometer-collector.conf" do
-    source "init_ceilometer-collector.conf"
-    mode 0644
-    owner node["nova"]["user"]
-    group node["nova"]["group"]
-  end
+node['ceilometer']['packages']['collector'].each do |pkg|
+  package pkg
+end
 
-  link "/etc/init.d/ceilometer-collector" do
-    to '/lib/init/upstart-job'
-    action :create
-  end
-else
+service "#{node['ceilometer']['services']['collector']}" do
+  action [ :enable, :start ]
+end
+
+#case node['platform']
+#when 'ubuntu'
+#  cookbook_file "/etc/init/ceilometer-collector.conf" do
+#    source "init_ceilometer-collector.conf"
+#    mode 0644
+#    owner node["nova"]["user"]
+#    group node["nova"]["group"]
+#  end
+#
+#  link "/etc/init.d/ceilometer-collector" do
+#    to '/lib/init/upstart-job'
+#    action :create
+#  end
+#else
   # need to implement
-end
+#end
 
 # db migration
-ceilometer_conf = node["ceilometer"]["conf"]
-install_dir = node["ceilometer"]["install_dir"]
-bash "migration" do
-  if File.exists?("#{install_dir}/tools/dbsync")
-    break if db_scheme == 'mongodb'
-    code <<-EOF
-      #{install_dir}/tools/dbsync --config-file=#{ceilometer_conf}
-    EOF
-  else
-    code <<-EOF
-      ceilometer-dbsync --config-file=#{ceilometer_conf}
-    EOF
-  end
-end
+#ceilometer_conf = node["ceilometer"]["conf"]
+#install_dir = node["ceilometer"]["install_dir"]
+#bash "migration" do
+#  if File.exists?("#{install_dir}/tools/dbsync")
+#    break if db_scheme == 'mongodb'
+#    code <<-EOF
+#      #{install_dir}/tools/dbsync --config-file=#{ceilometer_conf}
+#    EOF
+#  else
+#    code <<-EOF
+#      ceilometer-dbsync --config-file=#{ceilometer_conf}
+#    EOF
+#  end
+#end
 
-bindir = '/usr/local/bin'
-conf_switch = "--config-file #{ceilometer_conf}"
+#bindir = '/usr/local/bin'
+#conf_switch = "--config-file #{ceilometer_conf}"
 
-service "ceilometer-collector" do
-  service_name "ceilometer-collector"
-  case  node['platform']
-  when 'ubuntu'
-    action [:enable, :start]
-  else
-    action [:start]
-    start_command "nohup #{bindir}/ceilometer-collector #{conf_switch} &"
-    stop_command "pkill -f ceilometer-collector"
-  end
-end
+#service "ceilometer-collector" do
+#  service_name "ceilometer-collector"
+#  case  node['platform']
+#  when 'ubuntu'
+#    action [:enable, :start]
+#  else
+#    action [:start]
+#    start_command "nohup #{bindir}/ceilometer-collector #{conf_switch} &"
+#    stop_command "pkill -f ceilometer-collector"
+#  end
+#end

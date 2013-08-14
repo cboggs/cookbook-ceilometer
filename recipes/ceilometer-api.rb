@@ -19,40 +19,48 @@
 
 include_recipe "ceilometer::ceilometer-common"
 
-python_pip 'pymongo' do
-  action :install
+node['ceilometer']['packages']['api'].each do |pkg|
+  package pkg
 end
 
-case node['platform']
-when 'ubuntu'
-  cookbook_file "/etc/init/ceilometer-api.conf" do
-    source "init_ceilometer-api.conf"
-    mode 0644
-    owner node["nova"]["user"]
-    group node["nova"]["group"]
-  end
-  
-  link "/etc/init.d/ceilometer-api" do
-    to '/lib/init/upstart-job'
-    action :create
-  end
-else
-  # need to implement
+service "#{node['ceilometer']['services']['api']}" do
+  action [ :enable, :start ]
 end
 
-bindir = '/usr/local/bin'
-logdir = node["ceilometer"]["api_logdir"]
-ceilometer_conf = node["ceilometer"]["conf"]
-conf_switch = "--config-file #{ceilometer_conf}"
+#python_pip 'pymongo' do
+#  action :install
+#end
 
-service "ceilometer-api" do
-  service_name "ceilometer-api"
-  case  node['platform']
-  when 'ubuntu'
-    action [:enable, :start]
-  else
-    action [:start]
-    start_command "nohup #{bindir}/ceilometer-api -d --log-dir=#{logdir} #{conf_switch} &"
-    stop_command "pkill -f ceilometer-api"
-  end
-end
+#case node['platform']
+#when 'ubuntu'
+#  cookbook_file "/etc/init/ceilometer-api.conf" do
+#    source "init_ceilometer-api.conf"
+#    mode 0644
+#    owner node["nova"]["user"]
+#    group node["nova"]["group"]
+#  end
+#  
+#  link "/etc/init.d/ceilometer-api" do
+#    to '/lib/init/upstart-job'
+#    action :create
+#  end
+#else
+#
+#end
+
+#bindir = '/usr/local/bin'
+#logdir = node["ceilometer"]["logdir"]
+#ceilometer_conf = node["ceilometer"]["conf"]
+#conf_switch = "--config-file #{ceilometer_conf}"
+
+#service "ceilometer-api" do
+#  service_name "ceilometer-api"
+#  case  node['platform']
+#  when 'ubuntu'
+#    action [:enable, :start]
+#  else
+#    action [:start]
+#    start_command "nohup #{bindir}/ceilometer-api -d --log-dir=#{logdir} #{conf_switch} &"
+#    stop_command "pkill -f ceilometer-api"
+#  end
+#end
